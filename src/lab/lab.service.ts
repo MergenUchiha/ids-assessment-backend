@@ -43,6 +43,30 @@ export class LabService {
     return configs;
   }
 
+  async updateIDSStatus(id: string, status: string) {
+    const config = await this.prisma.iDSConfiguration.update({
+      where: { id },
+      data: { status },
+    });
+
+    return {
+      message: `IDS ${status === 'active' ? 'started' : 'stopped'} successfully`,
+      config,
+    };
+  }
+
+  async updateIDSRules(id: string, rules: number) {
+    const config = await this.prisma.iDSConfiguration.update({
+      where: { id },
+      data: { rules },
+    });
+
+    return {
+      message: 'IDS rules updated successfully',
+      config,
+    };
+  }
+
   private async createDefaultEnvironments() {
     await this.prisma.labEnvironment.createMany({
       data: [

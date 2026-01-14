@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/report.dto';
 
@@ -10,6 +10,31 @@ export class ReportsService {
     return this.prisma.report.findMany({
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findOne(id: string) {
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+    });
+
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${id} not found`);
+    }
+
+    return report;
+  }
+
+  async delete(id: string) {
+    await this.findOne(id); // Check if exists
+
+    await this.prisma.report.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Report deleted successfully',
+      id,
+    };
   }
 
   async generate(data: CreateReportDto) {

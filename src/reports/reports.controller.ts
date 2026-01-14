@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/report.dto';
 
@@ -11,8 +11,18 @@ export class ReportsController {
     return this.reportsService.findAll();
   }
 
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.reportsService.findOne(id);
+  }
+
   @Post('generate')
   async generate(@Body() createReportDto: CreateReportDto) {
     return this.reportsService.generate(createReportDto);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    return this.reportsService.delete(id);
   }
 }
