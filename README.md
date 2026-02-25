@@ -1,384 +1,98 @@
-# IDS Assessment Platform - Backend
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
 
-Backend API для IDS Assessment Platform на NestJS + Prisma + PostgreSQL.
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-## 🚀 Быстрый старт
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-### 1. Установка зависимостей
+## Description
 
-```bash
-npm install
-```
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-### 2. Настройка базы данных
-
-Создайте файл `.env` в корне backend папки:
-
-```env
-DATABASE_URL="postgresql://postgres:password@localhost:5432/ids_assessment?schema=public"
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:3000
-```
-
-**Замените** `password` на ваш пароль от PostgreSQL!
-
-### 3. Создайте базу данных
-
-В PostgreSQL:
-
-```sql
-CREATE DATABASE ids_assessment;
-```
-
-Или через psql:
+## Project setup
 
 ```bash
-psql -U postgres
-CREATE DATABASE ids_assessment;
-\q
+$ npm install
 ```
 
-### 4. Запустите миграции Prisma
+## Compile and run the project
 
 ```bash
-npm run prisma:generate
-npm run prisma:migrate
+# development
+$ npm run start
+
+# watch mode
+$ npm run start:dev
+
+# production mode
+$ npm run start:prod
 ```
 
-### 5. Заполните базу тестовыми данными (опционально)
+## Run tests
 
 ```bash
-npm run prisma:seed
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
 ```
 
-### 6. Запустите backend
+## Deployment
+
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
 
 ```bash
-npm run start:dev
+$ npm install -g @nestjs/mau
+$ mau deploy
 ```
 
-Backend запустится на `http://localhost:3001`
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
----
+## Resources
 
-## 📚 API Endpoints
+Check out a few resources that may come in handy when working with NestJS:
 
-### Health Check
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
 
-```
-GET /api
-GET /api/health
-```
+## Support
 
-### Attack Scenarios
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-```
-GET    /api/scenarios          - Получить все сценарии
-GET    /api/scenarios?status=ready  - Фильтр по статусу
-GET    /api/scenarios/:id      - Получить один сценарий
-POST   /api/scenarios          - Создать сценарий
-PUT    /api/scenarios/:id      - Обновить сценарий
-DELETE /api/scenarios/:id      - Удалить сценарий
-POST   /api/scenarios/:id/run  - Запустить тест
-```
+## Stay in touch
 
-**Пример создания сценария:**
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
 
-```json
-{
-  "name": "EternalBlue Test",
-  "description": "SMB exploit test",
-  "exploitType": "Remote Code Execution",
-  "targetIP": "192.168.1.100",
-  "targetOS": "Windows Server 2008 R2",
-  "targetPort": 445,
-  "status": "ready"
-}
-```
+## License
 
-### Tests
-
-```
-GET /api/tests           - Получить все тесты
-GET /api/tests/:id       - Получить один тест
-GET /api/tests/:id/results  - Получить результаты теста
-```
-
-### Dashboard
-
-```
-GET /api/dashboard/stats - Получить статистику для dashboard
-```
-
-**Пример ответа:**
-
-```json
-{
-  "totalTests": 47,
-  "activeTests": 2,
-  "totalAttacks": 2847,
-  "detectedAttacks": 2654,
-  "detectionRate": 93.2,
-  "falsePositiveRate": 2.1,
-  "avgDetectionTime": 1247
-}
-```
-
-### Lab Monitor
-
-```
-GET /api/lab/environments  - Получить lab environments
-GET /api/lab/ids-configs   - Получить IDS конфигурации
-```
-
-### Reports
-
-```
-GET  /api/reports          - Получить все отчёты
-POST /api/reports/generate - Сгенерировать отчёт
-```
-
-**Пример генерации отчёта:**
-
-```json
-{
-  "name": "January 2025 Report",
-  "type": "summary",
-  "format": "pdf",
-  "dateRange": "30"
-}
-```
-
----
-
-## 🗄️ База данных (Prisma Schema)
-
-### Модели:
-
-- **AttackScenario** - сценарии атак
-- **Test** - тесты
-- **TestResult** - результаты тестов
-- **IDSConfiguration** - конфигурации IDS
-- **LabEnvironment** - виртуальные машины
-- **Report** - отчёты
-
-### Prisma команды:
-
-```bash
-npm run prisma:generate  # Сгенерировать Prisma Client
-npm run prisma:migrate   # Создать миграцию
-npm run prisma:studio    # Открыть Prisma Studio
-npm run prisma:seed      # Заполнить базу данными
-npm run prisma:reset     # Сбросить базу
-```
-
----
-
-## 🧪 Тестирование API
-
-### Через curl:
-
-```bash
-# Health check
-curl http://localhost:3001/api/health
-
-# Получить все сценарии
-curl http://localhost:3001/api/scenarios
-
-# Создать сценарий
-curl -X POST http://localhost:3001/api/scenarios \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Test Scenario",
-    "description": "Test",
-    "exploitType": "RCE",
-    "targetIP": "192.168.1.100",
-    "targetOS": "Windows",
-    "targetPort": 445
-  }'
-
-# Запустить тест
-curl -X POST http://localhost:3001/api/scenarios/SCENARIO_ID/run
-
-# Dashboard stats
-curl http://localhost:3001/api/dashboard/stats
-```
-
-### Через Postman/Thunder Client:
-
-Импортируйте endpoints из списка выше.
-
----
-
-## 🔄 Как работает симуляция тестов
-
-Когда вы запускаете `POST /api/scenarios/:id/run`:
-
-1. Создаётся новый Test со статусом `running`
-2. Scenario переходит в статус `running`
-3. Через 5 секунд симулируется завершение теста:
-   - Генерируются TestResults (20-50 атак)
-   - 85-95% атак помечаются как detected
-   - Добавляются случайные false positives
-4. Test переходит в статус `completed`
-5. Scenario переходит в статус `completed`
-
-**В реальном приложении** здесь бы запускался Metasploit через RPC API.
-
----
-
-## 📁 Структура проекта
-
-```
-backend/
-├── src/
-│   ├── main.ts              # Точка входа
-│   ├── app.module.ts        # Главный модуль
-│   ├── app.controller.ts    # Главный контроллер
-│   ├── app.service.ts       # Главный сервис
-│   │
-│   ├── prisma/              # Prisma модуль
-│   │   ├── prisma.module.ts
-│   │   └── prisma.service.ts
-│   │
-│   ├── scenarios/           # Attack Scenarios
-│   │   ├── scenarios.module.ts
-│   │   ├── scenarios.controller.ts
-│   │   ├── scenarios.service.ts
-│   │   └── dto/
-│   │       └── scenario.dto.ts
-│   │
-│   ├── tests/               # Tests
-│   │   ├── tests.module.ts
-│   │   ├── tests.controller.ts
-│   │   └── tests.service.ts
-│   │
-│   ├── dashboard/           # Dashboard Stats
-│   │   ├── dashboard.module.ts
-│   │   ├── dashboard.controller.ts
-│   │   └── dashboard.service.ts
-│   │
-│   ├── lab/                 # Lab Monitor
-│   │   ├── lab.module.ts
-│   │   ├── lab.controller.ts
-│   │   └── lab.service.ts
-│   │
-│   └── reports/             # Reports
-│       ├── reports.module.ts
-│       ├── reports.controller.ts
-│       ├── reports.service.ts
-│       └── dto/
-│           └── report.dto.ts
-│
-├── prisma/
-│   ├── schema.prisma        # Database schema
-│   └── seed.ts              # Seed данные
-│
-├── .env                     # Environment variables
-├── package.json
-├── tsconfig.json
-└── nest-cli.json
-```
-
----
-
-## 🔗 Подключение Frontend
-
-В frontend создайте файл `src/services/api.ts`:
-
-```typescript
-const API_URL = 'http://localhost:3001/api';
-
-export const api = {
-  // Scenarios
-  getScenarios: () => fetch(`${API_URL}/scenarios`).then(r => r.json()),
-  createScenario: (data) => fetch(`${API_URL}/scenarios`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(r => r.json()),
-  runScenario: (id) => fetch(`${API_URL}/scenarios/${id}/run`, {
-    method: 'POST',
-  }).then(r => r.json()),
-  
-  // Tests
-  getTests: () => fetch(`${API_URL}/tests`).then(r => r.json()),
-  
-  // Dashboard
-  getDashboardStats: () => fetch(`${API_URL}/dashboard/stats`).then(r => r.json()),
-  
-  // Lab
-  getLabEnvironments: () => fetch(`${API_URL}/lab/environments`).then(r => r.json()),
-  getIDSConfigs: () => fetch(`${API_URL}/lab/ids-configs`).then(r => r.json()),
-  
-  // Reports
-  getReports: () => fetch(`${API_URL}/reports`).then(r => r.json()),
-  generateReport: (data) => fetch(`${API_URL}/reports/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(r => r.json()),
-};
-```
-
----
-
-## 🛠️ Troubleshooting
-
-### Ошибка подключения к базе данных
-
-```
-Error: Can't reach database server
-```
-
-**Решение:**
-1. Убедитесь что PostgreSQL запущен
-2. Проверьте DATABASE_URL в `.env`
-3. Проверьте что база `ids_assessment` создана
-
-### Prisma Client не найден
-
-```
-Error: @prisma/client did not initialize yet
-```
-
-**Решение:**
-
-```bash
-npm run prisma:generate
-```
-
-### Порт 3001 занят
-
-**Решение:** Измените PORT в `.env` файле:
-
-```env
-PORT=3002
-```
-
----
-
-## 📊 Prisma Studio
-
-Откройте visual редактор базы данных:
-
-```bash
-npm run prisma:studio
-```
-
-Откроется на `http://localhost:5555`
-
----
-
-## 🎯 Следующие шаги
-
-1. ✅ Backend работает
-2. ⏳ Подключите Frontend к Backend API
-3. ⏳ Замените mock данные на реальные API вызовы
-4. ⏳ (Опционально) Добавьте WebSocket для real-time
-5. ⏳ (Опционально) Интегрируйте с реальным Metasploit
-
----
-
-**Backend готов к использованию!** 🚀
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
