@@ -4,8 +4,8 @@ export declare class AlertsService {
     constructor(prisma: PrismaService);
     findAll(): import(".prisma/client").Prisma.PrismaPromise<{
         id: string;
-        runId: string;
         timestamp: Date;
+        runId: string;
         signature: string;
         severity: number;
         srcIp: string;

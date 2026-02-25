@@ -4,9 +4,9 @@ export declare class RunsController {
     constructor(runsService: RunsService);
     create(experimentId: string, scenarioId: string): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.RunStatus;
         startedAt: Date | null;
         finishedAt: Date | null;
+        status: import(".prisma/client").$Enums.RunStatus;
         attackSuccess: boolean | null;
         evePath: string | null;
         msfLogPath: string | null;
@@ -15,6 +15,16 @@ export declare class RunsController {
         idsProfileId: string | null;
     }>;
     get(runId: string): Promise<({
+        alerts: {
+            id: string;
+            timestamp: Date;
+            runId: string;
+            signature: string;
+            severity: number;
+            srcIp: string;
+            destIp: string;
+            raw: import("@prisma/client/runtime/library").JsonValue;
+        }[];
         metrics: {
             id: string;
             runId: string;
@@ -26,21 +36,11 @@ export declare class RunsController {
             f1: number | null;
             latencyMs: number | null;
         } | null;
-        alerts: {
-            id: string;
-            runId: string;
-            timestamp: Date;
-            signature: string;
-            severity: number;
-            srcIp: string;
-            destIp: string;
-            raw: import("@prisma/client/runtime/library").JsonValue;
-        }[];
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.RunStatus;
         startedAt: Date | null;
         finishedAt: Date | null;
+        status: import(".prisma/client").$Enums.RunStatus;
         attackSuccess: boolean | null;
         evePath: string | null;
         msfLogPath: string | null;
@@ -70,11 +70,11 @@ export declare class RunsController {
         startedAt: Date | null;
         finishedAt: Date | null;
         attackEvents: {
-            id: string;
             data: import("@prisma/client/runtime/library").JsonValue | null;
-            runId: string;
-            timestamp: Date;
+            id: string;
             type: string;
+            timestamp: Date;
+            runId: string;
         }[];
     } | null>;
     alerts(runId: string, page?: string, limit?: string): Promise<{
@@ -83,8 +83,8 @@ export declare class RunsController {
         limit: number;
         data: {
             id: string;
-            runId: string;
             timestamp: Date;
+            runId: string;
             signature: string;
             severity: number;
             srcIp: string;

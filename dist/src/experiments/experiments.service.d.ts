@@ -11,9 +11,9 @@ export declare class ExperimentsService {
     findAll(): import(".prisma/client").Prisma.PrismaPromise<({
         runs: {
             id: string;
-            status: import(".prisma/client").$Enums.RunStatus;
             startedAt: Date | null;
             finishedAt: Date | null;
+            status: import(".prisma/client").$Enums.RunStatus;
             attackSuccess: boolean | null;
             evePath: string | null;
             msfLogPath: string | null;
@@ -30,9 +30,9 @@ export declare class ExperimentsService {
     findOne(id: string): import(".prisma/client").Prisma.Prisma__ExperimentClient<({
         runs: {
             id: string;
-            status: import(".prisma/client").$Enums.RunStatus;
             startedAt: Date | null;
             finishedAt: Date | null;
+            status: import(".prisma/client").$Enums.RunStatus;
             attackSuccess: boolean | null;
             evePath: string | null;
             msfLogPath: string | null;
