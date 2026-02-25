@@ -7,96 +7,109 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model AttackScenario {
-  id          String   @id @default(uuid())
-  name        String
-  description String
-  exploitType String
-  targetIP    String
-  targetOS    String
-  targetPort  Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  status      String   @default("draft") // draft, ready, running, completed
-  tests       Test[]
-
-  @@map("attack_scenarios")
-}
-
-model Test {
-  id               String          @id @default(uuid())
-  scenarioId       String
-  scenario         AttackScenario  @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-  startedAt        DateTime        @default(now())
-  finishedAt       DateTime?
-  status           String          @default("running") // running, completed, failed
-  totalAttacks     Int             @default(0)
-  detectedAttacks  Int             @default(0)
-  missedAttacks    Int             @default(0)
-  falsePositives   Int             @default(0)
-  results          TestResult[]
-
-  @@map("tests")
-}
-
-model TestResult {
-  id             String   @id @default(uuid())
-  testId         String
-  test           Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
-  attackType     String
-  exploitName    String
-  idsDetected    Boolean
-  detectionTime  Int?
-  falsePositive  Boolean  @default(false)
-  severity       String   // low, medium, high, critical
-  timestamp      DateTime @default(now())
-  sourceIP       String
-  targetIP       String
-  protocol       String
-
-  @@map("test_results")
-}
-
-model IDSConfiguration {
-  id          String   @id @default(uuid())
-  name        String
-  type        String   // snort, suricata
-  version     String
-  rules       Int
-  sensitivity String   // low, medium, high
-  status      String   @default("inactive") // active, inactive
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("ids_configurations")
-}
-
-model LabEnvironment {
+model User {
   id        String   @id @default(uuid())
-  name      String
-  type      String   // attacker, target, ids
-  ip        String   @unique
-  os        String
-  status    String   @default("offline") // online, offline, busy
-  cpu       Float    @default(0)
-  memory    Float    @default(0)
-  network   Float    @default(0)
+  email     String   @unique
+  password  String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("lab_environments")
 }
 
-model Report {
-  id              String   @id @default(uuid())
-  name            String
-  type            String   // summary, detailed, comparative
-  format          String   // pdf, csv, json
-  dateRange       String
-  testsIncluded   Int      @default(0)
-  fileSize        String?
-  filePath        String?
-  createdAt       DateTime @default(now())
+model Experiment {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  runs        Run[]
+}
 
-  @@map("reports")
+model Run {
+  id            String    @id @default(uuid())
+  experimentId  String
+  scenarioId    String?
+  idsProfileId  String?
+  status        RunStatus @default(QUEUED)
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  attackSuccess Boolean?
+
+  // paths to artifacts
+  evePath    String?
+  msfLogPath String?
+
+  experiment Experiment  @relation(fields: [experimentId], references: [id])
+  scenario   Scenario?   @relation(fields: [scenarioId], references: [id])
+  idsProfile IdsProfile? @relation(fields: [idsProfileId], references: [id])
+
+  attackEvents AttackEvent[]
+  alerts       Alert[]
+  metrics      Metric?
+}
+
+model Alert {
+  id        String   @id @default(uuid())
+  runId     String
+  timestamp DateTime
+  signature String
+  severity  Int
+  srcIp     String
+  destIp    String
+  raw       Json
+  run       Run      @relation(fields: [runId], references: [id])
+}
+
+model Metric {
+  id    String @id @default(uuid())
+  runId String @unique
+
+  tp Int @default(0)
+  fp Int @default(0)
+  fn Int @default(0)
+
+  precision Float?
+  recall    Float?
+  f1        Float?
+  latencyMs Int?
+
+  run Run @relation(fields: [runId], references: [id])
+}
+
+model Scenario {
+  id                 String   @id @default(uuid())
+  name               String
+  description        String?
+  msfModule          String
+  payload            String?
+  rport              Int?
+  // ожидаемые сигнатуры IDS (упрощенно) - для сопоставления
+  expectedSignatures String[] @default([])
+  createdAt          DateTime @default(now())
+
+  runs Run[]
+}
+
+model IdsProfile {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  // путь/идентификатор набора правил (для диплома достаточно string)
+  ruleset   String
+  createdAt DateTime @default(now())
+
+  runs Run[]
+}
+
+model AttackEvent {
+  id        String   @id @default(uuid())
+  runId     String
+  type      String // attack_start, attack_end, attack_success, attack_fail
+  timestamp DateTime @default(now())
+  data      Json?
+
+  run Run @relation(fields: [runId], references: [id])
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  FINISHED
+  FAILED
 }

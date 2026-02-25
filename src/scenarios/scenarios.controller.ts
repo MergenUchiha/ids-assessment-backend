@@ -1,38 +1,37 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { ScenariosService } from './scenarios.service';
-import { CreateScenarioDto, UpdateScenarioDto } from './dto/scenario.dto';
 
 @Controller('scenarios')
 export class ScenariosController {
-  constructor(private readonly scenariosService: ScenariosService) {}
+  constructor(private readonly service: ScenariosService) {}
+
+  @Post()
+  create(
+    @Body()
+    body: {
+      name: string;
+      description?: string;
+      msfModule: string;
+      payload?: string;
+      rport?: number;
+      expectedSignatures?: string[];
+    },
+  ) {
+    return this.service.create(body);
+  }
 
   @Get()
-  async findAll(@Query('status') status?: string) {
-    return this.scenariosService.findAll(status);
+  findAll() {
+    return this.service.findAll();
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.scenariosService.findOne(id);
-  }
-
-  @Post()
-  async create(@Body() createScenarioDto: CreateScenarioDto) {
-    return this.scenariosService.create(createScenarioDto);
-  }
-
-  @Put(':id')
-  async update(@Param('id') id: string, @Body() updateScenarioDto: UpdateScenarioDto) {
-    return this.scenariosService.update(id, updateScenarioDto);
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.scenariosService.remove(id);
-  }
-
-  @Post(':id/run')
-  async runScenario(@Param('id') id: string) {
-    return this.scenariosService.runScenario(id);
+  remove(@Param('id') id: string) {
+    return this.service.remove(id);
   }
 }
