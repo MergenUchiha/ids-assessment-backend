@@ -36,9 +36,9 @@ model Run {
   evePath    String?
   msfLogPath String?
 
-  experiment Experiment  @relation(fields: [experimentId], references: [id])
-  scenario   Scenario?   @relation(fields: [scenarioId], references: [id])
-  idsProfile IdsProfile? @relation(fields: [idsProfileId], references: [id])
+  experiment Experiment  @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  scenario   Scenario?   @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  idsProfile IdsProfile? @relation(fields: [idsProfileId], references: [id], onDelete: SetNull)
 
   attackEvents AttackEvent[]
   alerts       Alert[]
@@ -54,7 +54,7 @@ model Alert {
   srcIp     String
   destIp    String
   raw       Json
-  run       Run      @relation(fields: [runId], references: [id])
+  run       Run @relation(fields: [runId], references: [id], onDelete: Cascade)
 }
 
 model Metric {
@@ -70,7 +70,7 @@ model Metric {
   f1        Float?
   latencyMs Int?
 
-  run Run @relation(fields: [runId], references: [id])
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
 }
 
 model Scenario {
@@ -104,7 +104,7 @@ model AttackEvent {
   timestamp DateTime @default(now())
   data      Json?
 
-  run Run @relation(fields: [runId], references: [id])
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
 }
 
 enum RunStatus {

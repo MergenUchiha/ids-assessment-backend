@@ -17,18 +17,23 @@ let IdsProfilesService = class IdsProfilesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    create(name, ruleset) {
-        return this.prisma.idsProfile.create({
-            data: { name, ruleset },
+    async create(name, ruleset) {
+        const existing = await this.prisma.idsProfile.findUnique({
+            where: { name },
         });
+        if (existing)
+            throw new common_1.ConflictException(`Profile "${name}" already exists`);
+        return this.prisma.idsProfile.create({ data: { name, ruleset } });
     }
     findAll() {
-        return this.prisma.idsProfile.findMany();
+        return this.prisma.idsProfile.findMany({ orderBy: { createdAt: 'desc' } });
     }
-    remove(id) {
-        return this.prisma.idsProfile.delete({
-            where: { id },
+    async remove(id) {
+        await this.prisma.run.updateMany({
+            where: { idsProfileId: id },
+            data: { idsProfileId: null },
         });
+        return this.prisma.idsProfile.delete({ where: { id } });
     }
 };
 exports.IdsProfilesService = IdsProfilesService;

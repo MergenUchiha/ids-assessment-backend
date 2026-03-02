@@ -15,7 +15,6 @@ export class RunsProcessor {
 
   @Process('execute-run')
   async handle(job: Job<{ runId: string }>) {
-    console.log('CWD:', process.cwd());
     const { runId } = job.data;
     const evePath = path.resolve(
       process.cwd(),

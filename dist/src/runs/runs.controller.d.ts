@@ -3,6 +3,23 @@ export declare class RunsController {
     private readonly runsService;
     constructor(runsService: RunsService);
     create(experimentId: string, scenarioId: string): Promise<{
+        idsProfile: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            ruleset: string;
+        } | null;
+        scenario: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            rport: number | null;
+            description: string | null;
+            msfModule: string;
+            payload: string | null;
+            expectedSignatures: string[];
+        } | null;
+    } & {
         id: string;
         startedAt: Date | null;
         finishedAt: Date | null;
@@ -14,7 +31,30 @@ export declare class RunsController {
         scenarioId: string | null;
         idsProfileId: string | null;
     }>;
-    get(runId: string): Promise<({
+    get(runId: string): Promise<{
+        idsProfile: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            ruleset: string;
+        } | null;
+        scenario: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            rport: number | null;
+            description: string | null;
+            msfModule: string;
+            payload: string | null;
+            expectedSignatures: string[];
+        } | null;
+        attackEvents: {
+            data: import("@prisma/client/runtime/library").JsonValue | null;
+            id: string;
+            type: string;
+            timestamp: Date;
+            runId: string;
+        }[];
         alerts: {
             id: string;
             timestamp: Date;
@@ -47,12 +87,12 @@ export declare class RunsController {
         experimentId: string;
         scenarioId: string | null;
         idsProfileId: string | null;
-    }) | null>;
+    }>;
     report(runId: string): Promise<{
         runId: string;
         experiment: string;
-        scenario: string | undefined;
-        idsProfile: string | undefined;
+        scenario: string | null;
+        idsProfile: string | null;
         status: import(".prisma/client").$Enums.RunStatus;
         attackSuccess: boolean | null;
         metrics: {
@@ -76,7 +116,7 @@ export declare class RunsController {
             timestamp: Date;
             runId: string;
         }[];
-    } | null>;
+    }>;
     alerts(runId: string, page?: string, limit?: string): Promise<{
         total: number;
         page: number;

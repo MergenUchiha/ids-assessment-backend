@@ -29,7 +29,7 @@ export declare class ScenariosService {
         payload: string | null;
         expectedSignatures: string[];
     }[]>;
-    findOne(id: string): import(".prisma/client").Prisma.Prisma__ScenarioClient<{
+    findOne(id: string): Promise<{
         id: string;
         createdAt: Date;
         name: string;
@@ -38,8 +38,8 @@ export declare class ScenariosService {
         msfModule: string;
         payload: string | null;
         expectedSignatures: string[];
-    } | null, null, import("@prisma/client/runtime/library").DefaultArgs>;
-    remove(id: string): import(".prisma/client").Prisma.Prisma__ScenarioClient<{
+    }>;
+    remove(id: string): Promise<{
         id: string;
         createdAt: Date;
         name: string;
@@ -48,5 +48,5 @@ export declare class ScenariosService {
         msfModule: string;
         payload: string | null;
         expectedSignatures: string[];
-    }, never, import("@prisma/client/runtime/library").DefaultArgs>;
+    }>;
 }

@@ -24,21 +24,43 @@ let RunsService = class RunsService {
         this.runsQueue = runsQueue;
     }
     async createRun(experimentId, scenarioId) {
+        const [experiment, scenario] = await Promise.all([
+            this.prisma.experiment.findUnique({ where: { id: experimentId } }),
+            this.prisma.scenario.findUnique({ where: { id: scenarioId } }),
+        ]);
+        if (!experiment)
+            throw new common_1.NotFoundException(`Experiment ${experimentId} not found`);
+        if (!scenario)
+            throw new common_1.NotFoundException(`Scenario ${scenarioId} not found`);
+        const defaultProfile = await this.prisma.idsProfile.findFirst({
+            where: { name: 'default' },
+        });
         const run = await this.prisma.run.create({
             data: {
                 experimentId,
                 scenarioId,
+                idsProfileId: defaultProfile?.id ?? null,
                 status: 'QUEUED',
             },
+            include: { scenario: true, idsProfile: true },
         });
         await this.runsQueue.add('execute-run', { runId: run.id });
         return run;
     }
     async getRun(runId) {
-        return this.prisma.run.findUnique({
+        const run = await this.prisma.run.findUnique({
             where: { id: runId },
-            include: { alerts: true, metrics: true },
+            include: {
+                scenario: true,
+                idsProfile: true,
+                alerts: { orderBy: { timestamp: 'asc' } },
+                metrics: true,
+                attackEvents: { orderBy: { timestamp: 'asc' } },
+            },
         });
+        if (!run)
+            throw new common_1.NotFoundException(`Run ${runId} not found`);
+        return run;
     }
     async getReport(runId) {
         const run = await this.prisma.run.findUnique({
@@ -47,44 +69,41 @@ let RunsService = class RunsService {
                 scenario: true,
                 experiment: true,
                 metrics: true,
-                alerts: true,
-                attackEvents: true,
                 idsProfile: true,
+                attackEvents: { orderBy: { timestamp: 'asc' } },
+                _count: { select: { alerts: true } },
             },
         });
         if (!run)
-            return null;
+            throw new common_1.NotFoundException(`Run ${runId} not found`);
         return {
             runId: run.id,
             experiment: run.experiment.name,
-            scenario: run.scenario?.name,
-            idsProfile: run.idsProfile?.name,
+            scenario: run.scenario?.name ?? null,
+            idsProfile: run.idsProfile?.name ?? null,
             status: run.status,
-            attackSuccess: run.attackSuccess,
-            metrics: run.metrics,
-            alertsCount: run.alerts.length,
-            startedAt: run.startedAt,
-            finishedAt: run.finishedAt,
+            attackSuccess: run.attackSuccess ?? null,
+            metrics: run.metrics ?? null,
+            alertsCount: run._count.alerts,
+            startedAt: run.startedAt ?? null,
+            finishedAt: run.finishedAt ?? null,
             attackEvents: run.attackEvents,
         };
     }
     async getAlerts(runId, page, limit) {
-        const skip = (page - 1) * limit;
+        const safePage = Math.max(1, page);
+        const safeLimit = Math.min(100, Math.max(1, limit));
+        const skip = (safePage - 1) * safeLimit;
         const [data, total] = await Promise.all([
             this.prisma.alert.findMany({
                 where: { runId },
                 skip,
-                take: limit,
+                take: safeLimit,
                 orderBy: { timestamp: 'asc' },
             }),
             this.prisma.alert.count({ where: { runId } }),
         ]);
-        return {
-            total,
-            page,
-            limit,
-            data,
-        };
+        return { total, page: safePage, limit: safeLimit, data };
     }
 };
 exports.RunsService = RunsService;

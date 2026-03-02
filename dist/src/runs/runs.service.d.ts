@@ -5,6 +5,23 @@ export declare class RunsService {
     private readonly runsQueue;
     constructor(prisma: PrismaService, runsQueue: Queue);
     createRun(experimentId: string, scenarioId: string): Promise<{
+        idsProfile: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            ruleset: string;
+        } | null;
+        scenario: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            rport: number | null;
+            description: string | null;
+            msfModule: string;
+            payload: string | null;
+            expectedSignatures: string[];
+        } | null;
+    } & {
         id: string;
         startedAt: Date | null;
         finishedAt: Date | null;
@@ -16,7 +33,30 @@ export declare class RunsService {
         scenarioId: string | null;
         idsProfileId: string | null;
     }>;
-    getRun(runId: string): Promise<({
+    getRun(runId: string): Promise<{
+        idsProfile: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            ruleset: string;
+        } | null;
+        scenario: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            rport: number | null;
+            description: string | null;
+            msfModule: string;
+            payload: string | null;
+            expectedSignatures: string[];
+        } | null;
+        attackEvents: {
+            data: import("@prisma/client/runtime/library").JsonValue | null;
+            id: string;
+            type: string;
+            timestamp: Date;
+            runId: string;
+        }[];
         alerts: {
             id: string;
             timestamp: Date;
@@ -49,12 +89,12 @@ export declare class RunsService {
         experimentId: string;
         scenarioId: string | null;
         idsProfileId: string | null;
-    }) | null>;
+    }>;
     getReport(runId: string): Promise<{
         runId: string;
         experiment: string;
-        scenario: string | undefined;
-        idsProfile: string | undefined;
+        scenario: string | null;
+        idsProfile: string | null;
         status: import(".prisma/client").$Enums.RunStatus;
         attackSuccess: boolean | null;
         metrics: {
@@ -78,7 +118,7 @@ export declare class RunsService {
             timestamp: Date;
             runId: string;
         }[];
-    } | null>;
+    }>;
     getAlerts(runId: string, page: number, limit: number): Promise<{
         total: number;
         page: number;

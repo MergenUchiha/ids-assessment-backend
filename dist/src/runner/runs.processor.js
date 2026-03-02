@@ -58,7 +58,6 @@ let RunsProcessor = class RunsProcessor {
         this.eveReader = eveReader;
     }
     async handle(job) {
-        console.log('CWD:', process.cwd());
         const { runId } = job.data;
         const evePath = path.resolve(process.cwd(), '..', 'artifacts', 'suricata', 'eve.json');
         const run = await this.prisma.run.findUnique({
