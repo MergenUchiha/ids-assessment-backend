@@ -18,22 +18,23 @@ let ScenariosService = class ScenariosService {
         this.prisma = prisma;
     }
     create(data) {
-        return this.prisma.scenario.create({
-            data,
-        });
+        return this.prisma.scenario.create({ data });
     }
     findAll() {
-        return this.prisma.scenario.findMany();
+        return this.prisma.scenario.findMany({ orderBy: { createdAt: 'desc' } });
     }
-    findOne(id) {
-        return this.prisma.scenario.findUnique({
-            where: { id },
-        });
+    async findOne(id) {
+        const scenario = await this.prisma.scenario.findUnique({ where: { id } });
+        if (!scenario)
+            throw new common_1.NotFoundException(`Scenario ${id} not found`);
+        return scenario;
     }
-    remove(id) {
-        return this.prisma.scenario.delete({
-            where: { id },
+    async remove(id) {
+        await this.prisma.run.updateMany({
+            where: { scenarioId: id },
+            data: { scenarioId: null },
         });
+        return this.prisma.scenario.delete({ where: { id } });
     }
 };
 exports.ScenariosService = ScenariosService;

@@ -1,3 +1,4 @@
+// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -10,10 +11,13 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false, // было true — ломало запросы со snake_case полями
       transform: true,
     }),
   );
+
+  // JWT guard глобально — можно вынести в отдельный guard
+  // (сейчас контроллеры не защищены вообще!)
 
   const config = new DocumentBuilder()
     .setTitle('IDS Lab API')
@@ -24,12 +28,16 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const doc = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, doc);
+  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
 
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:4173', // vite preview
+    ],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   const prisma = app.get(PrismaService);
@@ -37,5 +45,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen(port);
+  console.log(`🚀 Backend running on http://localhost:${port}`);
+  console.log(`📚 Swagger: http://localhost:${port}/docs`);
 }
 bootstrap();

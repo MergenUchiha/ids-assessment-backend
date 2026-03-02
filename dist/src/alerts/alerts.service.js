@@ -20,7 +20,16 @@ let AlertsService = class AlertsService {
     findAll() {
         return this.prisma.alert.findMany({
             orderBy: { timestamp: 'desc' },
-            take: 100,
+            take: 500,
+            include: {
+                run: {
+                    select: {
+                        id: true,
+                        experimentId: true,
+                        scenario: { select: { name: true } },
+                    },
+                },
+            },
         });
     }
 };

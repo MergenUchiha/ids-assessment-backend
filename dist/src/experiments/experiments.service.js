@@ -20,23 +20,55 @@ let ExperimentsService = class ExperimentsService {
     create(name, description) {
         return this.prisma.experiment.create({
             data: { name, description },
+            include: {
+                runs: { include: { scenario: true, idsProfile: true, metrics: true } },
+            },
         });
     }
     findAll() {
         return this.prisma.experiment.findMany({
-            include: { runs: true },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                runs: {
+                    orderBy: { startedAt: 'desc' },
+                    include: {
+                        scenario: true,
+                        idsProfile: true,
+                        metrics: true,
+                    },
+                },
+            },
         });
     }
-    findOne(id) {
-        return this.prisma.experiment.findUnique({
+    async findOne(id) {
+        const exp = await this.prisma.experiment.findUnique({
             where: { id },
-            include: { runs: true },
+            include: {
+                runs: {
+                    orderBy: { startedAt: 'desc' },
+                    include: { scenario: true, idsProfile: true, metrics: true },
+                },
+            },
         });
+        if (!exp)
+            throw new common_1.NotFoundException(`Experiment ${id} not found`);
+        return exp;
     }
-    remove(id) {
-        return this.prisma.experiment.delete({
-            where: { id },
+    async remove(id) {
+        const runs = await this.prisma.run.findMany({
+            where: { experimentId: id },
+            select: { id: true },
         });
+        const runIds = runs.map((r) => r.id);
+        if (runIds.length > 0) {
+            await this.prisma.metric.deleteMany({ where: { runId: { in: runIds } } });
+            await this.prisma.attackEvent.deleteMany({
+                where: { runId: { in: runIds } },
+            });
+            await this.prisma.alert.deleteMany({ where: { runId: { in: runIds } } });
+            await this.prisma.run.deleteMany({ where: { experimentId: id } });
+        }
+        return this.prisma.experiment.delete({ where: { id } });
     }
 };
 exports.ExperimentsService = ExperimentsService;
