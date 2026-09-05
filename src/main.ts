@@ -1,51 +1,62 @@
 // src/main.ts
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { PrismaService } from './prisma/prisma.service';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: false, // было true — ломало запросы со snake_case полями
+      // Back on: it was turned off "because it broke snake_case requests",
+      // but the real fix is that every endpoint now has a DTO whose fields
+      // match. An unknown field is a client bug, not something to silently drop.
+      forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
-  // JWT guard глобально — можно вынести в отдельный guard
-  // (сейчас контроллеры не защищены вообще!)
-
-  const config = new DocumentBuilder()
-    .setTitle('IDS Lab API')
-    .setDescription(
-      'Assessing IDS Effectiveness against Metasploit in Isolated Lab',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  // Every route requires a JWT unless marked @Public(). The previous build had
+  // a JwtStrategy and no guard at all — main.ts said so in a comment while the
+  // whole API answered anonymous callers, including the endpoint that launches
+  // Metasploit against the lab.
+  app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:4173', // vite preview
-    ],
+    origin: config
+      .getOrThrow<string>('CORS_ORIGINS')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  const prisma = app.get(PrismaService);
-  await prisma.enableShutdownHooks(app);
+  if (config.get<boolean>('SWAGGER_ENABLED')) {
+    const doc = new DocumentBuilder()
+      .setTitle('IDS Lab API')
+      .setDescription(
+        'Assessing IDS effectiveness against Metasploit in an isolated lab',
+      )
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, doc));
+  }
 
-  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  const port = config.getOrThrow<number>('PORT');
   await app.listen(port);
-  console.log(`🚀 Backend running on http://localhost:${port}`);
-  console.log(`📚 Swagger: http://localhost:${port}/docs`);
+  logger.log(`API listening on http://localhost:${port}`);
+  if (config.get<boolean>('SWAGGER_ENABLED')) {
+    logger.log(`Swagger UI at http://localhost:${port}/docs`);
+  }
 }
-bootstrap();
+
+void bootstrap();
