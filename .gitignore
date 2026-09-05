@@ -41,6 +41,10 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Suricata and Metasploit output produced by a run. The repository carried
+# 4.6 MB of eve.json here.
+/artifacts
+
 # temp directory
 .temp
 .tmp

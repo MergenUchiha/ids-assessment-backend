@@ -1,0 +1,73 @@
+# The full lab. `docker compose up -d` brings up the database, the queue, the
+# Suricata sensor, and an isolated attacker/victim pair on a private network.
+#
+# The repository shipped the Suricata config under infra/ and the artifacts of
+# a run under artifacts/, but nothing that actually stood the lab up — so the
+# runner had containers to talk to only on the author's own machine.
+
+name: ids-assessment
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ids
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ids
+    ports:
+      # Loopback only: the database is not exposed to the network.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ids']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── Isolated lab ─────────────────────────────────────────────────────────
+  # These three share a private bridge with no route to the host network. The
+  # attacker is only ever given a validated Metasploit module path to run.
+
+  victim:
+    image: httpd:2.4-alpine
+    networks:
+      lab:
+        aliases: [victim]
+
+  suricata:
+    image: jasonish/suricata:latest
+    depends_on: [victim]
+    network_mode: 'service:victim'
+    cap_add: [NET_ADMIN, NET_RAW, SYS_NICE]
+    volumes:
+      - ./infra/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./infra/suricata/rules:/etc/suricata/rules:ro
+      - ./artifacts/suricata:/var/log/suricata
+    command: ['-c', '/etc/suricata/suricata.yaml', '-i', 'eth0']
+
+  attacker:
+    image: metasploitframework/metasploit-framework:latest
+    container_name: ids_attacker
+    depends_on: [victim]
+    networks: [lab]
+    # Idle until the runner execs a scenario into it.
+    entrypoint: ['tail', '-f', '/dev/null']
+
+networks:
+  lab:
+    driver: bridge
+    internal: true
+
+volumes:
+  pgdata:
