@@ -1,8 +1,15 @@
 import { PrismaClient, RunStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { faker } from '@faker-js/faker';
+import { config as loadDotenv } from 'dotenv';
+
+// `ts-node prisma/seed.ts` does not load .env on its own, unlike the Prisma
+// CLI, so DATABASE_URL and the admin credentials would be undefined here.
+loadDotenv();
 
 const prisma = new PrismaClient();
+const BCRYPT_ROUNDS = 12;
 
 // ─── Metasploit модули — реальные auxiliary/exploit модули ──────────────────
 const MSF_MODULES = [
@@ -138,18 +145,33 @@ async function main() {
 
   // ── 1. Пользователи ─────────────────────────────────────────────────────────
   console.log('👤 Creating users...');
-  const adminHash = await bcrypt.hash('REDACTED-ROTATE-SEED-PASSWORD', 10);
+  // No default password in the seed. A hardcoded one is a published
+  // credential that survives in every deployment nobody remembers to change.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) {
+    throw new Error(
+      'SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set. See .env.example.',
+    );
+  }
+  if (adminPassword.length < 12) {
+    throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters.');
+  }
   const admin = await prisma.user.create({
-    data: { email: 'admin@test.com', password: adminHash },
+    data: { email: adminEmail, password: await bcrypt.hash(adminPassword, BCRYPT_ROUNDS) },
   });
 
+  // Demo accounts get a random unusable password: they exist to populate the
+  // account list, not to be signed in as.
   const extraUsers = await Promise.all(
-    Array.from({ length: 3 }, async () => {
-      const hash = await bcrypt.hash('REDACTED-ROTATE-DEMO-PASSWORD', 10);
-      return prisma.user.create({
-        data: { email: faker.internet.email().toLowerCase(), password: hash },
-      });
-    }),
+    Array.from({ length: 3 }, () =>
+      prisma.user.create({
+        data: {
+          email: faker.internet.email().toLowerCase(),
+          password: bcrypt.hashSync(randomBytes(24).toString('hex'), BCRYPT_ROUNDS),
+        },
+      }),
+    ),
   );
   console.log(`   ✓ ${1 + extraUsers.length} users`);
 
@@ -267,10 +289,15 @@ async function main() {
       const scenario = randomFrom(scenarios);
       const idsProfile = randomFrom(profiles);
       const { startedAt, finishedAt } = fakeRunDates(status);
+      // One run in six is a baseline: no attack, so any alert is a false
+      // positive. That is what makes the false-positive rate measurable.
+      const isBaseline = faker.datatype.boolean({ probability: 0.16 });
       const attackSuccess =
-        status === 'FINISHED'
+        status === 'FINISHED' && !isBaseline
           ? faker.datatype.boolean({ probability: 0.55 })
-          : null;
+          : status === 'FINISHED'
+            ? false
+            : null;
 
       const run = await prisma.run.create({
         data: {
@@ -280,6 +307,7 @@ async function main() {
           status,
           startedAt,
           finishedAt,
+          isBaseline,
           attackSuccess: attackSuccess ?? undefined,
         },
       });
@@ -374,49 +402,25 @@ async function main() {
           totalAlerts++;
         }
 
-        // ── Метрики ──────────────────────────────────────────────────────────
+        // ── Metrics: one confusion-matrix cell per run ───────────────────────
+        // Keyed on whether an attack was launched (attackSuccess is null for a
+        // baseline), not on whether the exploit landed. Precision/recall/F1
+        // are computed per experiment, not stored here — see ExperimentsService.
         if (status === 'FINISHED') {
-          const tp = attackSuccess ? 1 : 0;
-          const fp = attackSuccess ? 0 : Math.random() > 0.6 ? 1 : 0;
-          const fn = attackSuccess && Math.random() > 0.7 ? 1 : 0;
+          const detected = alertCount > 0 && faker.datatype.boolean({ probability: 0.8 });
 
-          const precision =
-            tp + fp > 0
-              ? tp / (tp + fp)
-              : Math.random() > 0.5
-                ? parseFloat(
-                    faker.number
-                      .float({ min: 0.5, max: 1.0, fractionDigits: 3 })
-                      .toString(),
-                  )
-                : 0;
-          const recall =
-            tp + fn > 0
-              ? tp / (tp + fn)
-              : Math.random() > 0.5
-                ? parseFloat(
-                    faker.number
-                      .float({ min: 0.4, max: 1.0, fractionDigits: 3 })
-                      .toString(),
-                  )
-                : 0;
-          const f1 =
-            precision + recall > 0
-              ? (2 * precision * recall) / (precision + recall)
-              : 0;
+          const tp = !isBaseline && detected ? 1 : 0;
+          const fn = !isBaseline && !detected ? 1 : 0;
+          const fp = isBaseline && detected ? 1 : 0;
+          const tn = isBaseline && !detected ? 1 : 0;
           const latencyMs = tp === 1 ? randomInt(50, 4500) : null;
 
+          await prisma.run.update({
+            where: { id: run.id },
+            data: { detected },
+          });
           await prisma.metric.create({
-            data: {
-              runId: run.id,
-              tp,
-              fp,
-              fn,
-              precision,
-              recall,
-              f1,
-              latencyMs,
-            },
+            data: { runId: run.id, tp, fp, fn, tn, latencyMs },
           });
         }
       }
@@ -435,7 +439,7 @@ async function main() {
   console.log(`   🧪 Experiments: ${EXPERIMENT_CONFIGS.length}`);
   console.log(`   ▶  Runs:        ${totalRuns}`);
   console.log(`   🔔 Alerts:      ${totalAlerts}`);
-  console.log('\n📧 Admin login: admin@test.com / REDACTED-ROTATE-SEED-PASSWORD');
+  console.log(`\n📧 Admin login: ${adminEmail} (SEED_ADMIN_PASSWORD)`);
 }
 
 main()

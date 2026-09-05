@@ -1,13 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ExperimentsService } from './experiments.service';
+import { CreateExperimentDto } from './dto/experiment.dto';
 
+@ApiTags('experiments')
+@ApiBearerAuth()
 @Controller('experiments')
 export class ExperimentsController {
   constructor(private readonly service: ExperimentsService) {}
 
   @Post()
-  create(@Body() body: { name: string; description?: string }) {
-    return this.service.create(body.name, body.description);
+  create(@Body() dto: CreateExperimentDto) {
+    return this.service.create(dto.name, dto.description);
   }
 
   @Get()
@@ -18,6 +22,11 @@ export class ExperimentsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
+  }
+
+  @Get(':id/summary')
+  summary(@Param('id') id: string) {
+    return this.service.getSummary(id);
   }
 
   @Delete(':id')

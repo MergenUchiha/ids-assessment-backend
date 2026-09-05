@@ -1,13 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { IdsProfilesService } from './ids-profiles.service';
+import { CreateIdsProfileDto } from './dto/ids-profile.dto';
 
+@ApiTags('ids-profiles')
+@ApiBearerAuth()
 @Controller('ids-profiles')
 export class IdsProfilesController {
   constructor(private readonly service: IdsProfilesService) {}
 
   @Post()
-  create(@Body() body: { name: string; ruleset: string }) {
-    return this.service.create(body.name, body.ruleset);
+  create(@Body() dto: CreateIdsProfileDto) {
+    return this.service.create(dto.name, dto.ruleset);
   }
 
   @Get()

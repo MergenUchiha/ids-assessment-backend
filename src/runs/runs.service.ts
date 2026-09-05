@@ -11,8 +11,11 @@ export class RunsService {
     @InjectQueue('runs') private readonly runsQueue: Queue,
   ) {}
 
-  async createRun(experimentId: string, scenarioId: string) {
-    // Проверяем что experiment и scenario существуют
+  async createRun(
+    experimentId: string,
+    scenarioId: string,
+    isBaseline = false,
+  ) {
     const [experiment, scenario] = await Promise.all([
       this.prisma.experiment.findUnique({ where: { id: experimentId } }),
       this.prisma.scenario.findUnique({ where: { id: scenarioId } }),
@@ -23,7 +26,6 @@ export class RunsService {
     if (!scenario)
       throw new NotFoundException(`Scenario ${scenarioId} not found`);
 
-    // Берём дефолтный IDS профиль если есть
     const defaultProfile = await this.prisma.idsProfile.findFirst({
       where: { name: 'default' },
     });
@@ -33,6 +35,7 @@ export class RunsService {
         experimentId,
         scenarioId,
         idsProfileId: defaultProfile?.id ?? null,
+        isBaseline,
         status: 'QUEUED',
       },
       include: { scenario: true, idsProfile: true },
@@ -79,6 +82,8 @@ export class RunsService {
       idsProfile: run.idsProfile?.name ?? null,
       status: run.status,
       attackSuccess: run.attackSuccess ?? null,
+      detected: run.detected ?? null,
+      isBaseline: run.isBaseline,
       metrics: run.metrics ?? null,
       alertsCount: run._count.alerts,
       startedAt: run.startedAt ?? null,

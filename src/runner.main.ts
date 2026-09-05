@@ -5,4 +5,4 @@ async function bootstrap() {
   // без http сервера
   await NestFactory.createApplicationContext(RunnerModule);
 }
-bootstrap();
+void bootstrap();

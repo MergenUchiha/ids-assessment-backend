@@ -30,7 +30,14 @@ model Run {
   status        RunStatus @default(QUEUED)
   startedAt     DateTime?
   finishedAt    DateTime?
+  /// Whether the exploit landed. Separate from `detected` on purpose: an
+  /// attack that fails is still an attack the IDS ought to see.
   attackSuccess Boolean?
+  /// Whether the IDS raised a matching alert during the run.
+  detected      Boolean?
+  /// A run with no attack, used to measure false positives. Without one,
+  /// the false-positive rate is not measurable at all.
+  isBaseline    Boolean   @default(false)
 
   // paths to artifacts
   evePath    String?
@@ -54,9 +61,12 @@ model Alert {
   srcIp     String
   destIp    String
   raw       Json
-  run       Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run       Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
 }
 
+/// One run contributes one cell of a confusion matrix. Precision, recall and
+/// F1 are not stored here — over a single run they can only ever be 0 or 1.
+/// They are computed across an experiment; see `ExperimentsService`.
 model Metric {
   id    String @id @default(uuid())
   runId String @unique
@@ -64,10 +74,9 @@ model Metric {
   tp Int @default(0)
   fp Int @default(0)
   fn Int @default(0)
+  tn Int @default(0)
 
-  precision Float?
-  recall    Float?
-  f1        Float?
+  /// Milliseconds from the start of the attack to the first matching alert.
   latencyMs Int?
 
   run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -80,7 +89,8 @@ model Scenario {
   msfModule          String
   payload            String?
   rport              Int?
-  // ожидаемые сигнатуры IDS (упрощенно) - для сопоставления
+  /// Signatures that count as a detection for this scenario. Empty means any
+  /// alert during the run counts.
   expectedSignatures String[] @default([])
   createdAt          DateTime @default(now())
 
@@ -90,7 +100,7 @@ model Scenario {
 model IdsProfile {
   id        String   @id @default(uuid())
   name      String   @unique
-  // путь/идентификатор набора правил (для диплома достаточно string)
+  /// Identifier of the Suricata ruleset this profile enables.
   ruleset   String
   createdAt DateTime @default(now())
 
@@ -100,7 +110,8 @@ model IdsProfile {
 model AttackEvent {
   id        String   @id @default(uuid())
   runId     String
-  type      String // attack_start, attack_end, attack_success, attack_fail
+  /// attack_start | attack_end | attack_success | attack_fail | error
+  type      String
   timestamp DateTime @default(now())
   data      Json?
 
