@@ -1,97 +1,114 @@
 import { Process, Processor } from '@nestjs/bull';
+import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Job } from 'bull';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { DockerExecService } from './lab/docker-exec.service';
-import { EveJsonReader } from './lab/eve-json.reader';
-import * as path from 'path';
+import { EveJsonReader, type EveAlert } from './lab/eve-json.reader';
+import { MSF_MODULE_PATTERN } from '../scenarios/dto/scenario.dto';
+
+/** How long after the attack ends an alert still counts as caused by it. */
+const ALERT_TAIL_MS = 30_000;
+
+/** Suricata writes to a volume; give it a moment to flush. */
+const EVE_FLUSH_DELAY_MS = 1_500;
 
 @Processor('runs')
 export class RunsProcessor {
+  private readonly logger = new Logger(RunsProcessor.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly dockerExec: DockerExecService,
     private readonly eveReader: EveJsonReader,
+    private readonly config: ConfigService,
   ) {}
 
   @Process('execute-run')
   async handle(job: Job<{ runId: string }>) {
     const { runId } = job.data;
-    const evePath = path.resolve(
-      process.cwd(),
-      '..',
-      'artifacts',
-      'suricata',
-      'eve.json',
-    );
 
     const run = await this.prisma.run.findUnique({
       where: { id: runId },
-      include: {
-        scenario: true,
-        idsProfile: true,
-      },
+      include: { scenario: true, idsProfile: true },
     });
 
-    if (!run || !run.scenario) throw new Error('Run or Scenario not found');
+    if (!run?.scenario) throw new Error('Run or scenario not found');
 
-    const attackerContainer = 'ids_attacker';
-    const victimHost = 'victim';
+    const scenario = run.scenario;
+
+    // Checked again here, not only at the API boundary: rows predating the
+    // DTO, or written by hand, must not reach msfconsole either.
+    if (!MSF_MODULE_PATTERN.test(scenario.msfModule)) {
+      await this.fail(
+        runId,
+        `Refusing to run: "${scenario.msfModule}" is not a valid Metasploit module path`,
+      );
+      throw new Error('Invalid msfModule');
+    }
+
+    const rport = Number(scenario.rport ?? 80);
+    if (!Number.isInteger(rport) || rport < 1 || rport > 65535) {
+      await this.fail(
+        runId,
+        `Refusing to run: invalid RPORT ${scenario.rport}`,
+      );
+      throw new Error('Invalid rport');
+    }
+
+    const attacker = this.config.getOrThrow<string>('LAB_ATTACKER_CONTAINER');
+    const victim = this.config.getOrThrow<string>('LAB_VICTIM_HOST');
+    const evePath = path.resolve(
+      process.cwd(),
+      this.config.getOrThrow<string>('EVE_JSON_PATH'),
+    );
 
     const startedAt = new Date();
 
     await this.prisma.run.update({
       where: { id: runId },
-      data: { status: 'RUNNING', startedAt },
+      data: { status: 'RUNNING', startedAt, evePath },
     });
-
     await this.prisma.attackEvent.create({
-      data: {
-        runId,
-        type: 'attack_start',
-        timestamp: startedAt,
-      },
+      data: { runId, type: 'attack_start', timestamp: startedAt },
     });
 
     try {
-      const scenario = run.scenario;
+      // One argv element per argument, and no `sh -lc` anywhere: the resource
+      // script is a single argument to msfconsole, so neither a shell nor the
+      // quoting around it can be broken out of.
+      const resourceScript = [
+        `use ${scenario.msfModule}`,
+        `set RHOSTS ${victim}`,
+        `set RPORT ${rport}`,
+        ...(scenario.payload ? [`set PAYLOAD ${scenario.payload}`] : []),
+        'run',
+        'exit',
+      ].join('; ');
 
-      const msfCommand = `
-        use ${scenario.msfModule};
-        set RHOSTS ${victimHost};
-        set RPORT ${scenario.rport ?? 80};
-        run;
-        exit;
-      `;
-
-      const fullCommand = [
-        'sh',
-        '-lc',
-        `bundle exec msfconsole -q -x "${msfCommand.replace(/\n/g, ' ')}"`,
-      ];
-
-      const output = await this.dockerExec.execInContainer(
-        attackerContainer,
-        fullCommand,
+      const { stdout, stderr } = await this.dockerExec.execInContainer(
+        attacker,
+        ['msfconsole', '-q', '-n', '-x', resourceScript],
       );
+      const output = stdout || stderr;
 
-      // гарантированный HTTP GET для тестового Suricata правила
-      await this.dockerExec.execInContainer(attackerContainer, [
-        'sh',
-        '-lc',
-        "printf 'GET / HTTP/1.1\r\nHost: victim\r\n\r\n' | nc victim 80 || true",
-      ]);
+      // A fixed probe so the lab's test signature always has something to
+      // match; no interpolation, so it needs no escaping.
+      await this.dockerExec
+        .execInContainer(attacker, [
+          'sh',
+          '-c',
+          'printf "GET / HTTP/1.1\\r\\nHost: victim\\r\\n\\r\\n" | nc victim 80',
+        ])
+        .catch(() => undefined);
 
-      // даём Suricata дописать eve.json (на volume может быть задержка)
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, EVE_FLUSH_DELAY_MS));
 
       const finishedAt = new Date();
 
       await this.prisma.attackEvent.create({
-        data: {
-          runId,
-          type: 'attack_end',
-          timestamp: finishedAt,
-        },
+        data: { runId, type: 'attack_end', timestamp: finishedAt },
       });
 
       const attackSuccess =
@@ -107,109 +124,102 @@ export class RunsProcessor {
         },
       });
 
-      // --- READ ALERTS (широкое окно чтения) ---
-      const alerts = this.eveReader.readAlertsInWindow(
+      const alerts = await this.eveReader.readAlertsInWindow(
         evePath,
-        new Date(startedAt.getTime() - 30000),
-        new Date(finishedAt.getTime() + 30000),
+        startedAt,
+        new Date(finishedAt.getTime() + ALERT_TAIL_MS),
       );
 
-      alerts.sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      );
-
-      // сохраняем ВСЕ алерты, которые попали в wide-window
-      for (const a of alerts) {
+      for (const alert of alerts) {
         await this.prisma.alert.create({
           data: {
             runId,
-            timestamp: new Date(a.timestamp),
-            signature: a.alert?.signature ?? 'unknown',
-            severity: a.alert?.severity ?? 0,
-            srcIp: a.src_ip ?? 'unknown',
-            destIp: a.dest_ip ?? 'unknown',
-            raw: a as any,
+            timestamp: new Date(alert.timestamp),
+            signature: alert.alert?.signature ?? 'unknown',
+            severity: alert.alert?.severity ?? 0,
+            srcIp: alert.src_ip ?? 'unknown',
+            destIp: alert.dest_ip ?? 'unknown',
+            raw: { ...alert },
           },
         });
       }
 
-      // --- MATCHING LOGIC (узкое окно + сигнатуры) ---
-      // узкое окно, чтобы НЕ брать алерты до старта (и избежать отрицательной latency)
-      const startMs = startedAt.getTime();
-      const endMs = finishedAt.getTime() + 30000; // Δ после атаки
-
-      const relevantAlerts = alerts.filter((a) => {
-        const ts = new Date(a.timestamp).getTime();
-
-        // только алерты этого run (исключаем "хвосты" из прошлых запусков)
-        if (ts < startMs) return false;
-        if (ts > endMs) return false;
-
-        // optional: если заданы expected signatures — фильтруем по ним
-        if (scenario.expectedSignatures.length) {
-          return scenario.expectedSignatures.includes(a.alert?.signature ?? '');
-        }
-        return true;
-      });
-
-      const detected = relevantAlerts.length > 0;
-
-      // --- METRICS ---
-      let tp = 0;
-      let fp = 0;
-      let fn = 0;
-
-      if (attackSuccess && detected) tp = 1;
-      if (attackSuccess && !detected) fn = 1;
-      if (!attackSuccess && detected) fp = 1;
-
-      const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
-      const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
-      const f1 =
-        precision + recall > 0
-          ? (2 * precision * recall) / (precision + recall)
-          : 0;
-
-      let latencyMs: number | null = null;
-      if (tp === 1) {
-        // relevantAlerts уже гарантированно >= startedAt
-        latencyMs = new Date(relevantAlerts[0].timestamp).getTime() - startMs;
-      }
+      const matching = matchAlerts(alerts, scenario.expectedSignatures);
+      const detected = matching.length > 0;
 
       await this.prisma.metric.upsert({
         where: { runId },
-        update: { tp, fp, fn, precision, recall, f1, latencyMs },
-        create: { runId, tp, fp, fn, precision, recall, f1, latencyMs },
+        update: metricsFor(run.isBaseline, detected, startedAt, matching),
+        create: {
+          runId,
+          ...metricsFor(run.isBaseline, detected, startedAt, matching),
+        },
       });
 
       await this.prisma.run.update({
         where: { id: runId },
-        data: {
-          status: 'FINISHED',
-          finishedAt,
-          attackSuccess,
-        },
+        data: { status: 'FINISHED', finishedAt, attackSuccess, detected },
       });
 
       return { ok: true };
-    } catch (e: any) {
-      await this.prisma.attackEvent.create({
-        data: {
-          runId,
-          type: 'error',
-          data: {
-            message: String(e?.message ?? e),
-          } as any,
-        },
-      });
-
-      await this.prisma.run.update({
-        where: { id: runId },
-        data: { status: 'FAILED', finishedAt: new Date() },
-      });
-
-      throw e;
+    } catch (error) {
+      await this.fail(runId, String((error as Error)?.message ?? error));
+      throw error;
     }
   }
+
+  private async fail(runId: string, message: string) {
+    this.logger.error(`Run ${runId} failed: ${message}`);
+    await this.prisma.attackEvent.create({
+      data: { runId, type: 'error', data: { message } },
+    });
+    await this.prisma.run.update({
+      where: { id: runId },
+      data: { status: 'FAILED', finishedAt: new Date() },
+    });
+  }
+}
+
+function matchAlerts(alerts: EveAlert[], expected: string[]): EveAlert[] {
+  if (expected.length === 0) return alerts;
+  return alerts.filter((a) => expected.includes(a.alert?.signature ?? ''));
+}
+
+/**
+ * What a run contributes to the confusion matrix.
+ *
+ * The previous version keyed everything off `attackSuccess`, so an IDS that
+ * caught an attack which then failed to land was scored as a **false
+ * positive** — the one thing a detection system is supposed to do. Whether an
+ * exploit succeeded says nothing about whether the traffic was hostile.
+ *
+ * What matters is whether an attack was *launched*:
+ *
+ *   attack run, alert raised     → true positive
+ *   attack run, no alert         → false negative
+ *   no attack (baseline), alert  → false positive
+ *   no attack, no alert          → true negative
+ *
+ * Baseline runs carry no attack, which is what makes false positives
+ * measurable at all; see `Run.isBaseline`. Precision and recall over a single
+ * run are only ever 0 or 1, so they are aggregated per experiment rather than
+ * stored here — `ExperimentsService.getSummary` does that.
+ */
+function metricsFor(
+  isBaseline: boolean,
+  detected: boolean,
+  startedAt: Date,
+  matching: EveAlert[],
+) {
+  const tp = !isBaseline && detected ? 1 : 0;
+  const fn = !isBaseline && !detected ? 1 : 0;
+  const fp = isBaseline && detected ? 1 : 0;
+  const tn = isBaseline && !detected ? 1 : 0;
+
+  const latencyMs =
+    tp === 1
+      ? new Date(matching[0].timestamp).getTime() - startedAt.getTime()
+      : null;
+
+  return { tp, fp, fn, tn, latencyMs };
 }

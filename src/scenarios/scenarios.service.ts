@@ -1,20 +1,16 @@
 // src/scenarios/scenarios.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateScenarioDto } from './dto/scenario.dto';
 
 @Injectable()
 export class ScenariosService {
   constructor(private prisma: PrismaService) {}
 
-  create(data: {
-    name: string;
-    description?: string;
-    msfModule: string;
-    payload?: string;
-    rport?: number;
-    expectedSignatures?: string[];
-  }) {
-    return this.prisma.scenario.create({ data });
+  create(data: CreateScenarioDto) {
+    return this.prisma.scenario.create({
+      data: { ...data, expectedSignatures: data.expectedSignatures ?? [] },
+    });
   }
 
   findAll() {
@@ -27,15 +23,10 @@ export class ScenariosService {
     return scenario;
   }
 
-  /**
-   * Нельзя удалить scenario если на него ссылаются runs.
-   * Обнуляем scenarioId у runs перед удалением.
-   */
+  // Runs reference a scenario with `onDelete: SetNull`, so deleting one leaves
+  // its runs intact with a null scenarioId.
   async remove(id: string) {
-    await this.prisma.run.updateMany({
-      where: { scenarioId: id },
-      data: { scenarioId: null },
-    });
+    await this.findOne(id);
     return this.prisma.scenario.delete({ where: { id } });
   }
 }

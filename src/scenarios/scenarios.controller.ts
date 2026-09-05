@@ -1,23 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ScenariosService } from './scenarios.service';
+import { CreateScenarioDto } from './dto/scenario.dto';
 
+@ApiTags('scenarios')
+@ApiBearerAuth()
 @Controller('scenarios')
 export class ScenariosController {
   constructor(private readonly service: ScenariosService) {}
 
   @Post()
-  create(
-    @Body()
-    body: {
-      name: string;
-      description?: string;
-      msfModule: string;
-      payload?: string;
-      rport?: number;
-      expectedSignatures?: string[];
-    },
-  ) {
-    return this.service.create(body);
+  create(@Body() dto: CreateScenarioDto) {
+    return this.service.create(dto);
   }
 
   @Get()
