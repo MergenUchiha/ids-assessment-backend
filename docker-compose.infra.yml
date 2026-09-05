@@ -1,5 +1,8 @@
 # Just Postgres and Redis, for running the API against them without the lab.
-#   docker compose -f docker-compose.infra.yml up -d
+#   POSTGRES_PASSWORD=<something> docker compose -f docker-compose.infra.yml up -d
+#
+# POSTGRES_PASSWORD is required, with no default: a default here is a password
+# committed to the repository, even for a loopback-only dev database.
 name: ids-assessment-infra
 
 services:

@@ -40,7 +40,7 @@ cp .env.example .env                 # then fill in the required values
 openssl rand -base64 48              # a JWT secret
 
 # Postgres + Redis only:
-POSTGRES_PASSWORD=ids docker compose -f docker-compose.infra.yml up -d
+POSTGRES_PASSWORD=<something> docker compose -f docker-compose.infra.yml up -d
 
 npx prisma migrate dev               # apply migrations
 npm run prisma:seed                  # admin account + demo experiments
